@@ -2,6 +2,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 from authtoken.views import get_token_user_data
 from tasks.models import Paragraph, TokenizedWords
@@ -60,6 +61,7 @@ class ParagraphsView(APIView):
         serializer = self.serializer_class(instance, many=True)
         self.data['success'] = True
         self.data['message'] = "list of all paragraph's data"
+        self.data['count'] = f'{len(serializer.data)} paragraphs present'
         self.data['data'] = serializer.data
         self.data['status_code'] = status.HTTP_200_OK
         
@@ -128,6 +130,102 @@ class ParagraphsView(APIView):
         
         return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+
+class ParagraphSearchView(APIView):
+    queryset = Paragraph.objects
+    serializer_class = ParagraphSerializer
+    data = {}
+
+    @swagger_auto_schema(
+    manual_parameters=[
+        openapi.Parameter(
+            name='word',
+            in_=openapi.IN_QUERY,
+            description='Word to search for in paragraphs',
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ]
+    )
+
+    def get(self, request):
+        """
+        API view for searching and retrieving the top 10 paragraphs containing a specific word.
+
+        This endpoint allows authenticated users to search for paragraphs containing a given word and returns the top 10 results.
+        The API response includes the success status, a message, the list of matching paragraphs, and the HTTP status code.
+
+        **Request**:
+        - GET /tasks/v1/search/?word={word}
+
+        **Request Parameters**:
+        - `word`: str, required. The word to search for in the paragraphs.
+
+        **Responses**:
+        - 200 OK:
+            - Description: Successfully retrieved the top 10 paragraphs containing the word.
+            - Response Body:
+                - success: bool, indicates if the retrieval was successful
+                - message: str, confirmation message
+                - data: list, a list of up to 10 paragraph objects containing the word
+                - count: number of paragraphs found
+                - status_code: int, HTTP status code (200)
+        - 400 Bad Request:
+            - Description: The word parameter is missing.
+            - Response Body:
+                - success: bool, indicates if the request failed
+                - message: str, error message
+                - data: None
+                - status_code: int, HTTP status code (400)
+        - 401 Unauthorized:
+            - Description: The token is invalid or expired.
+            - Response Body:
+                - success: bool, indicates if the request failed
+                - message: str, error message
+                - data: None
+                - status_code: int, HTTP status code (401)
+        """
+        user_id, email, username = get_token_user_data(request)
+        if not user_id or not email or not username:
+            self.data['success'] = False
+            self.data['message'] = "Token is invalid or expired."
+            self.data['data'] = None
+            self.data['status_code'] = status.HTTP_401_UNAUTHORIZED
+            return Response(data=self.data, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Get the search word from query parameters
+        word :str = request.query_params.get('word')
+        if not word:
+            self.data['success'] = False
+            self.data['message'] = "word parameter is required."
+            self.data['data'] = None
+            self.data['status_code'] = status.HTTP_400_BAD_REQUEST
+            return Response(data=self.data, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = CustomUser.objects.get(email=email)
+        paragraphs_all = self.queryset.filter(user=user)
+
+        matching_paragraphs = []
+        for obj in paragraphs_all:
+            if len(matching_paragraphs) == 10: break
+            if word.lower() in obj.paragraphs.lower().split():
+                matching_paragraphs.append(obj)
+        
+        if not matching_paragraphs:
+            self.data['success'] = True
+            self.data['message'] = 'No paragraphs found containing the word.'
+            self.data['data'] = None
+            self.data['status_code'] = status.HTTP_200_OK
+            return Response(data=self.data, status=status.HTTP_200_OK)
+        
+        serializer = self.serializer_class(matching_paragraphs, many=True)
+        self.data['success'] = True
+        self.data['message'] = "List of top 10 paragraphs containing the word."
+        self.data['count'] = f'{len(serializer.data)} paragraphs found'
+        self.data['data'] = serializer.data
+        self.data['status_code'] = status.HTTP_200_OK
+        
+        return Response(data=self.data, status=status.HTTP_200_OK)    
 
 class TokenizedWordsView(APIView):
     queryset = TokenizedWords.objects

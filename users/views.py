@@ -77,6 +77,7 @@ class UsersListView(APIView):
         serializer = self.serializer_class(instance, many=True)
         self.data['success'] = True
         self.data['message'] = "list of all user's data"
+        self.data['count'] = f'{len(serializer.data)} users present'
         self.data['data'] = serializer.data
         self.data['status_code'] = status.HTTP_200_OK
         return Response(data=self.data, status=status.HTTP_200_OK)
