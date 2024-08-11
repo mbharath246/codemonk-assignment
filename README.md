@@ -40,9 +40,19 @@ This project implements a RESTful API for indexing paragraphs and allowing word-
     Windows:
     python manage.py makemigrations
     python manage.py migrate
+    
+   `create superuser`
+    python manage.py createsuperuser
+    enter basic details and submit
+    
     python manage.py runserver 
     
     Docker : docker compose up
+    create superuser in docker
+    steps: 1. docker ps (to see containers)
+           2. docker exec -it <containerid of django> /bin/bash
+           3. python manage.py createsuperuser
+           4. exit
     ```
 5. **Run the development server:**
 
@@ -55,10 +65,6 @@ This project implements a RESTful API for indexing paragraphs and allowing word-
     - Authorize Token
     - Now you can use all apis.
   
-7. **Superuser Details for Docker**
-    - username = 'admin@example.com'
-    - password = '12345'
-
 # Images
 
 ## all apis
